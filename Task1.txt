@@ -1,0 +1,41 @@
+Task 1:
+You are working on a data pipeline that processes different types of data files (CSV and JSON). 
+These files need to be read, validated, and merged together based on some business logic. 
+You will create a base DataFile class and derived classes for CSVFile and JSONFile. 
+Each class will have specific methods for reading and validating the data.
+
+Your task is to:
+
+1-Create a base class DataFile:
+    -It should have methods to read and validate the file.
+    -It should define an abstract method read() that will be implemented by the derived classes.
+    -It should handle exceptions when the file format is incorrect or unreadable.
+2-Create derived classes CSVFile and JSONFile:
+    CSVFile should read data from a CSV file and validate that required columns are present.
+    JSONFile should read data from a JSON file and validate that the data follows the correct structure.
+
+Overload the + operator:
+    Overload the + operator so that two files of the same type (either CSV or JSON) can be merged together.
+    Ensure that if the files have mismatched structures or formats (e.g., trying to merge CSV and JSON files), an error is raised.
+    Add exception handling for validation failures and file format mismatches during merging.
+
+Requirements:
+Base Class: DataFile
+
+read() method (abstract) – to be implemented by derived classes.
+validate() method – checks if the file is in the correct format.
+Handles file reading exceptions and structure validation.
+
+Derived Classes: CSVFile and JSONFile
+CSVFile: Reads a CSV file and validates that specific columns are present.
+JSONFile: Reads a JSON file and validates that specific keys are present.
+Operator Overloading:
+
++ operator merges two files of the same type.
+Raises an exception if the file formats differ or the structures do not match.
+Test Cases:
+Read a valid CSV file and a valid JSON file, apply validation, and confirm they work.
+Try to merge two valid CSV files.
+Try to merge a CSV file and a JSON file (should raise an exception).
+Test the validation failures with a missing column in a CSV or a missing key in JSON.
+Handle exceptions for unreadable files or incorrect formats.

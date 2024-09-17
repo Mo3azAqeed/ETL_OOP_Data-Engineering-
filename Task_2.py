@@ -3,11 +3,12 @@ import pandas as pd
 from abc import ABC, abstractmethod
 import requests 
 import json
+import csv
+import requests
 
 class DataSource(ABC):
-    def __init__(self, connection_details, schema):
+    def __init__(self, schema):
         self.schema = schema
-        self.connection_details = connection_details
 
     @abstractmethod
     def load_data(self):
@@ -16,7 +17,11 @@ class DataSource(ABC):
     def get_sample(self):
         pass
 
-    
+class FileSource(DataSource): #It Might Be CSV,JSOn,XML Files
+    def __init__(self, file_path, schema):
+        self.file_path = file_path
+        super().__init__(schema)
+
     @property
     def DataSource_type(self):
         try:
@@ -25,8 +30,6 @@ class DataSource(ABC):
         except:
             raise Exception("File extension check failed")
 
-    def Transform_Data(self):
-        pass
 
 class SchemaMismatchError(Exception):
     raise ValueError ("The Schema is unmatched")
@@ -34,7 +37,7 @@ class SchemaMismatchError(Exception):
 class FileFormatError(Exception):
     raise TypeError("The File Has A Wrong Format")
 
-class CSVSource(DataSource):
+class CSVSource(FileSource):
 
     def __init__(self, file_path, schema):
         super().__init__(file_path, schema)
@@ -48,9 +51,9 @@ class CSVSource(DataSource):
             if len(pd.read_csv(self.file_path).columns) == int(self.schema):
                 return pd.read_csv(self.file_path) #
             else:
-                raise ValueError(f"Schema mismatch: file has {len(pd.read_csv(self.file_path))} columns, but expected {int(self.schema)}.")
+                raise SchemaMismatchError
         else:
-            raise SchemaMismatchError("The file is not in CSV format")
+            raise FileFormatError 
 
     def Transform_Data(self):
         print(f"Transforming data from file: {self.file_path}")
@@ -64,20 +67,23 @@ class CSVSource(DataSource):
         return (self.df.head())
 
 
-class JSONSource(DataSource):
+class JSONSource(FileSource):
     def __init__(self,file_path,schema):
         super().__init__(file_path,schema)
         self.df=self.load_data()
+
+
     def load_data(self,file_path):
         if self.DataSource_type== ".json" :
             print(f"Loading Json file from: {self.file_path}")
             if len(list(self.file_path.keys())) == int(self.schema):
                  return pd.read_json(self.file_path)
             else: 
-                raise SchemaMismatchError ("The file is not in Json format")
+                raise SchemaMismatchError 
         else:
-            raise FileFormatError ("The file is not in Json format")
+            raise FileFormatError
 
+            
 class SQLSource(DataSource):
     def __init__(data_base_key,schema):
         super().__init__(file_path,schema) 

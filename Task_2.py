@@ -6,6 +6,8 @@ import json
 import csv
 import requests
 import time
+import sqlalchemy 
+
 
  
 
@@ -50,18 +52,19 @@ class CSVSource(FileSource):
 
     def __init__(self, file_path, schema):
         super().__init__(file_path, schema)
-        self.df = self.load_data() #Here I intialize a Daatframe So I Don't Have to use pd.reaed_csv(self.file_path) in the Other class body/ methoed (except )
+        self.df = self.load_data() #Here I intialize a Dataframe So I Don't Have to use pd.reaed_csv(self.file_path) in the Other class body/ methoed (except )
 
     def load_data(self):
         if self.DataSource_type == ".csv":
             print(f"Loading CSV file from: {self.file_path}")
             df = pd.read_csv(self.file_path)
-            if set (self.schema).issubsetset(df.columns) :
+            if set(self.schema).issubset(df.columns):
                 return df
             else:
                 raise SchemaMismatchError
         else:
-            raise FileFormatError 
+            raise FileFormatError("The file is not in the expected format. Expected .csv or .json.")
+
 
     def Transform_Data(self):
         print(f"Transforming data from file: {self.file_path}")
@@ -94,7 +97,7 @@ class JSONSource(FileSource):
         else:
             raise FileFormatError("The file is not in JSON format")
     def get_sample(self):
-        return (self.df.head())
+        return (self.df.head()) 
     
 
 class APIDataSource(DataSource):
@@ -104,6 +107,7 @@ class APIDataSource(DataSource):
         self.headers = headers or {}
         self.params = params or {}
         super().__init__(schema)
+
     
 
     def _build_url(self):
@@ -120,7 +124,7 @@ class APIDataSource(DataSource):
 
             
             elif self.response.status_code == 404:
-                raise  APiConnError(f"API request failed with status {response.status_code}", status_code=response.status_code)
+                raise APiConnError(f"API request failed with status {self.response.status_code}", status_code=self.response.status_code)
 
             else:
                 print(f"API request failed with status code: {self.response.status_code}")
@@ -143,22 +147,97 @@ class APIDataSource(DataSource):
             raise SchemaMismatchError(f"Missing expected fields: {missing_keys}")
         print("Response validated successfully.")
 
-
-schema = ["widget", "debug", "window", "image", "text"]
-# Initialize the API datasource
-api_data_source = APIDataSource(
-    base_url="https://example.com/api",
-    endpoint="data",
-    schema=schema,
-    headers={"Authorization": "Bearer YOUR_TOKEN"},
-    params={"query": "example"}
-)
-data = api_data_source.request_data(retries=3, delay=2)
-
 class SQLSource(DataSource):
-    def __init__(self,data_base_key,schema):
-        self.data_base_key=data_base_key
-        super().__init__(file_path,schema) 
+    def __init__(self, data_base_key, schema):
+        self.data_base_key = data_base_key
+        super().__init__(data_base_key, schema)
+    @abstractmethod
+    def connect(self):
+        """Establish a connection using the database key."""
+        pass
+    @abstractmethod
+    def run_query(self, query):
+        """Execute a query on the connected database."""
+        pass
+
+
+class Database(SQLSource):
+    def __init__(self, data_base_key, schema):
+        super().__init__(data_base_key, schema)
+        self.connection = self.connect()
+
+    def connect(self, retries=3, delay=2):
+        try:
+            engine = sqlalchemy.create_engine(f"postgresql://{self.data_base_key['user']}:{self.data_base_key['password']}@{self.data_base_key['host']}/{self.data_base_key['database']}")
+            conn = engine.connect()
+            return conn
+        except Exception as e:
+            if retries > 0:
+                print(f"Retrying... ({retries} retries left)")
+                time.sleep(delay)
+                return self.connect(retries - 1, delay * 2)
+            else:
+                raise APiConnError(f"Connection failed: {e}")
+
+    def run_query(self, query, params=None):
+        try:
+            return pd.read_sql_query(query, self.connection, params=params)
+        except Exception as e:
+            raise Exception(f"Query execution failed: {e}")
+
+    def export_data(self, query, export_format="csv"):
+        data = self.run_query(query)
+        if export_format == "csv":
+            return data.to_csv(index=False)
+        elif export_format == "json":
+            return data.to_json()
+        elif export_format == "excel":
+            return data.to_excel("output.xlsx", index=False)
+        else:
+            raise ValueError("Unsupported export format")
+    
+    def close_connection(self):
+        if self.connection:
+            self.connection.close()
+
+class Redshift(SQLSource):
+    def __init__(self, data_base_key, schema):
+        super().__init__(data_base_key, schema)
+        self.connection = self.connect()
+
+    def connect(self, retries=3, delay=2):
+        try:
+            engine = sqlalchemy.create_engine(f"redshift+psycopg2://{self.data_base_key['user']}:{self.data_base_key['password']}@{self.data_base_key['host']}:{self.data_base_key['port']}/{self.data_base_key['database']}")
+            conn = engine.connect()
+            return conn
+        except Exception as e:
+            if retries > 0:
+                print(f"Retrying... ({retries} retries left)")
+                time.sleep(delay)
+                return self.connect(retries - 1, delay * 2)
+            else:
+                raise APiConnError(f"Connection failed: {e}")
+
+    def run_query(self, query, params=None):
+        try:
+            return pd.read_sql_query(query, self.connection, params=params)
+        except Exception as e:
+            raise Exception(f"Query execution failed: {e}")
+
+    def export_data(self, query, export_format="csv"):
+        data = self.run_query(query)
+        if export_format == "csv":
+            return data.to_csv(index=False)
+        elif export_format == "json":
+            return data.to_json()
+        elif export_format == "excel":
+            return data.to_excel("output.xlsx", index=False)
+        else:
+            raise ValueError("Unsupported export format")
+    
+    def close_connection(self):
+        if self.connection:
+            self.connection.close()
 
 
 

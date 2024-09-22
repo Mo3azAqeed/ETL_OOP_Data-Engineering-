@@ -1,27 +1,19 @@
-import pandas as pd
-from datetime import datetime
+import requests
 
-class MyDataFrame(pd.DataFrame):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def to_csv(self, *args, **kwargs):
-        temp = self.copy()
-        temp['stamp'] = self.stamp
-        temp.to_csv(*args, **kwargs)
+base_url="https://pokeapi.co/api/v2/"
+Name="ditto"
 
-    @classmethod
-    def read_csv(cls, *args, **kwargs):
-        """
-        Class method to read a CSV file into an instance of MyDataFrame.
-        """
-        # Read the CSV into a regular DataFrame
-        df = pd.read_csv(*args, **kwargs)
-        # Convert it into an instance of MyDataFrame
-        return cls(df)
+def get_sample(Name):
+    url=f"{base_url}/pokemon/{Name}"
+    response=requests.get(url)
+    print(response.status_code)
+    return response.text()
 
-# Now you can use read_csv to create an instance of MyDataFrame
-test = MyDataFrame.read_csv('test.csv')
-print(test)
-test.to_csv('otput_3.csv')
+import pandas as pd 
+ pd.read_sql('SELECT int_column, date_column FROM test_data',
+...             conn,
+...             parse_dates={"date_column": {"format": "%d/%m/%y"}})
+   int_column date_column
+0           0  2012-11-10
+1           1  2010-11-12

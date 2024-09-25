@@ -18,7 +18,7 @@ class DataSource(ABC):
     @abstractmethod
     def load_data(self):
         pass
-    abstractmethod
+    @abstractmethod
     def get_sample(self):
         pass
 
